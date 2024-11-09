@@ -8,7 +8,7 @@ import argparse
 
 class PoolTableTrainer:
     def __init__(self, data_yaml="yolo_pool_dataset/dataset.yaml",
-                 epochs=100,
+                 epochs=1, # was 100
                  batch_size=16,
                  imgsz=640,
                  device=None):
@@ -32,7 +32,6 @@ class PoolTableTrainer:
             self.device = device
         
         # Create runs directory for outputs
-        self.runs_dir = Path('runs/segment')
         os.makedirs(self.runs_dir, exist_ok=True)
         
         # Load dataset config
@@ -75,14 +74,18 @@ class PoolTableTrainer:
         try:
             # Start training with optimized parameters
             results = model.train(
+                runs_dir=self.run_dirs,
                 data=self.data_yaml,
                 epochs=self.epochs,
                 batch=self.batch_size,
                 imgsz=self.imgsz,
                 device=self.device,
+                nms=True, 
+                iou=0.65,
+                max_det=100,
                 cache='disk',  # More stable than RAM cache
-                workers=4,     # Adjust based on your CPU
-                patience=20,   # Early stopping patience
+                workers=2,     # Adjust based on your CPU
+                patience=50,   # Early stopping patience
                 save=True,     # Save checkpoints
                 save_period=10,# Save every 10 epochs
                 pretrained=True,
@@ -147,46 +150,42 @@ class PoolTableTrainer:
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Train YOLOv8 for pool table segmentation')
-    parser.add_argument('--epochs', type=int, default=100, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='image size')
     parser.add_argument('--weights', type=str, default='yolov8s-seg.pt', help='initial weights path')
     parser.add_argument('--device', type=str, default=None, help='device (mps, cuda, or cpu)')
     args = parser.parse_args()
 
-    try:
-        print("PyTorch device availability:")
-        print(f"MPS (Apple Silicon): {torch.backends.mps.is_available()}")
-        print(f"CUDA (NVIDIA): {torch.cuda.is_available()}")
-        
-        # Initialize trainer
-        trainer = PoolTableTrainer(
-            epochs=args.epochs,
-            batch_size=args.batch_size,
-            imgsz=args.img_size,
-            device=args.device
-        )
-        
-        # Setup model
-        model = trainer.setup_model(args.weights)
-        
-        # Train model
-        results = trainer.train(model)
-        
-        # Validate model
-        val_results = trainer.validate(model)
-        
-        # Export model
-        trainer.export_model(model)
-        
-        print("\nTraining completed successfully!")
-        print(f"Results saved in: {trainer.runs_dir}")
-        
-    except Exception as e:
-        print(f"\nError during execution: {str(e)}")
-        import traceback
-        print("\nFull traceback:")
-        print(traceback.format_exc())
+    print("PyTorch device availability:")
+    print(f"MPS (Apple Silicon): {torch.backends.mps.is_available()}")
+    print(f"CUDA (NVIDIA): {torch.cuda.is_available()}")
+
+    runs_dir = '/Users/mouse/src/PocketFinder/runs/segment'
+    
+    # Initialize trainer
+    trainer = PoolTableTrainer(
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        imgsz=args.img_size,
+        device=args.device,
+        runs_dir=runs_dir 
+    )
+    
+    # Setup model
+    model = trainer.setup_model(args.weights)
+    
+    # Train model
+    results = trainer.train(model)
+    
+    # Validate model
+    val_results = trainer.validate(model)
+    
+    # Export model
+    trainer.export_model(model)
+    
+    print("\nTraining completed successfully!")
+    print(f"Results saved in: {trainer.runs_dir}")        
 
 if __name__ == "__main__":
     main()
