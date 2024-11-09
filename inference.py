@@ -68,8 +68,9 @@ def main():
     
     #args = parser.parse_args()
 
-    model_path = './Users/mouse/src/PocketFinder/yolov8s-seg.pt' 
-    image_path = '/Users/mouse/src/PocketFinder/my_own_pics/toad_hall_sample1.jpeg'
+    # model_path = './Users/mouse/src/PocketFinder/yolov8s-seg.pt' # base yolo 
+    model_path = '/Users/mouse/src/PocketFinder/runs/segment/weights/best.pt'
+    image_path = '/Users/mouse/src/PocketFinder/my_own_pics/toad_hall_sample2.jpeg'
     save_path = Path('/Users/mouse/src/PocketFinder/my_own_pics_results')
 
     run_inference(model_path, image_path , save_path, 0.5)

@@ -8,10 +8,11 @@ import argparse
 
 class PoolTableTrainer:
     def __init__(self, data_yaml="yolo_pool_dataset/dataset.yaml",
-                 epochs=1, # was 100
+                 epochs=50,# was 100
                  batch_size=16,
                  imgsz=640,
-                 device=None):
+                 device=None, 
+                 runs_dir='' ):
         """
         Initialize the pool table trainer
         """
@@ -19,6 +20,7 @@ class PoolTableTrainer:
         self.epochs = epochs
         self.batch_size = batch_size
         self.imgsz = imgsz
+        self.runs_dir = runs_dir
         
         # Device selection with MPS support
         if device is None:
@@ -44,21 +46,17 @@ class PoolTableTrainer:
         """
         print(f"\nSetting up YOLOv8 model with {pretrained_weights}")
         print(f"Using device: {self.device}")
+
+        # Download pretrained weights if not exists
+        if not os.path.exists(pretrained_weights):
+            print(f"Downloading {pretrained_weights}...")
+            model = YOLO(pretrained_weights)
+        else:
+            model = YOLO(pretrained_weights)
         
-        try:
-            # Download pretrained weights if not exists
-            if not os.path.exists(pretrained_weights):
-                print(f"Downloading {pretrained_weights}...")
-                model = YOLO(pretrained_weights)
-            else:
-                model = YOLO(pretrained_weights)
-            
-            print(f"Model loaded successfully on {self.device}")
-            return model
-            
-        except Exception as e:
-            print(f"Error setting up model: {str(e)}")
-            raise
+        print(f"Model loaded successfully on {self.device}")
+        return model
+
 
     def train(self, model):
         """
@@ -70,51 +68,46 @@ class PoolTableTrainer:
         print(f"- Batch size: {self.batch_size}")
         print(f"- Image size: {self.imgsz}")
         print(f"- Device: {self.device}")
-        
-        try:
-            # Start training with optimized parameters
-            results = model.train(
-                runs_dir=self.run_dirs,
-                data=self.data_yaml,
-                epochs=self.epochs,
-                batch=self.batch_size,
-                imgsz=self.imgsz,
-                device=self.device,
-                nms=True, 
-                iou=0.65,
-                max_det=100,
-                cache='disk',  # More stable than RAM cache
-                workers=2,     # Adjust based on your CPU
-                patience=50,   # Early stopping patience
-                save=True,     # Save checkpoints
-                save_period=10,# Save every 10 epochs
-                pretrained=True,
-                optimizer='Adam',
-                lr0=0.001,
-                lrf=0.01,
-                momentum=0.937,
-                weight_decay=0.0005,
-                warmup_epochs=3.0,
-                warmup_momentum=0.8,
-                warmup_bias_lr=0.1,
-                box=7.5,
-                cls=0.5,
-                dfl=1.5,
-                plots=True,
-                exist_ok=True,
-                overlap_mask=True,
-                mask_ratio=4,
-                single_cls=True,  # Since we only have one class
-                rect=True,
-                amp=True,
-                close_mosaic=10
-            )
-            
-            return results
-            
-        except Exception as e:
-            print(f"Error during training: {str(e)}")
-            raise
+    
+        # Start training with optimized parameters
+        results = model.train(
+            project=os.path.dirname(self.runs_dir),  # Parent directory
+            name=os.path.basename(self.runs_dir),    # Run name
+            data=self.data_yaml,    # path to yaml file containing config
+            epochs=self.epochs,     
+            batch=self.batch_size,
+            imgsz=self.imgsz,
+            device=self.device,
+            nms=True,               # non-maximum suppression for filtering overlapping detections
+            iou=0.65,               # Intersection over Union threshold for NMS
+            max_det=100,            # Maximum number of detections per image
+            cache='disk',           # More stable than RAM cache
+            workers=2,              # Number of works for data loading
+            patience=5,             # Number of epochs to wait before early stopping if no improvement
+            save=True,              # Save checkpoints
+            save_period=10,         # Save every 10 epochs
+            pretrained=True,
+            optimizer='Adam',
+            lr0=0.001,              # Learning rate
+            lrf=0.01,               # Final learning rate factor
+            momentum=0.937,
+            weight_decay=0.0005,
+            warmup_epochs=3.0,
+            warmup_momentum=0.8,
+            warmup_bias_lr=0.1,
+            box=7.5,                # Box loss weight
+            cls=0.5,                # Classification loss weight (up if struggling)
+            dfl=1.5,                # Distribution focal loss weight
+            plots=True,
+            exist_ok=True,
+            overlap_mask=True,
+            mask_ratio=4,
+            single_cls=True,        # Set True for single-class detection
+            rect=True,              # Rectangular training for efficiency
+            amp=True,               # Automatic mixed precision training
+            close_mosaic=10         # Disables mosaic augmentation in last 10 epochs for stability
+        ) 
+        return results
 
     def validate(self, model):
         """
@@ -150,7 +143,7 @@ class PoolTableTrainer:
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Train YOLOv8 for pool table segmentation')
-    parser.add_argument('--epochs', type=int, default=2, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=20, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='image size')
     parser.add_argument('--weights', type=str, default='yolov8s-seg.pt', help='initial weights path')
@@ -161,7 +154,10 @@ def main():
     print(f"MPS (Apple Silicon): {torch.backends.mps.is_available()}")
     print(f"CUDA (NVIDIA): {torch.cuda.is_available()}")
 
-    runs_dir = '/Users/mouse/src/PocketFinder/runs/segment'
+    # Update runs_dir path construction
+    project_dir = '/Users/mouse/src/PocketFinder/runs'
+    name = 'segment'
+    runs_dir = os.path.join(project_dir, name)
     
     # Initialize trainer
     trainer = PoolTableTrainer(
