@@ -40,7 +40,7 @@ class PoolTableTrainer:
         with open(data_yaml, 'r') as f:
             self.dataset_config = yaml.safe_load(f)
 
-    def setup_model(self, pretrained_weights="yolov8s-seg.pt"):
+    def setup_model(self, pretrained_weights="yolov8x-seg.pt"):
         """
         Setup YOLOv8 model with pretrained weights
         """
@@ -79,8 +79,8 @@ class PoolTableTrainer:
             imgsz=self.imgsz,
             device=self.device,
             nms=True,               # non-maximum suppression for filtering overlapping detections
-            iou=0.65,               # Intersection over Union threshold for NMS
-            max_det=100,            # Maximum number of detections per image
+            iou=0.5,               # Intersection over Union threshold for NMS
+            max_det=10,             # Maximum number of detections per image
             cache='disk',           # More stable than RAM cache
             workers=2,              # Number of works for data loading
             patience=5,             # Number of epochs to wait before early stopping if no improvement
@@ -88,21 +88,21 @@ class PoolTableTrainer:
             save_period=10,         # Save every 10 epochs
             pretrained=True,
             optimizer='Adam',
-            lr0=0.001,              # Learning rate
+            lr0=0.01,               # Learning rate
             lrf=0.01,               # Final learning rate factor
             momentum=0.937,
             weight_decay=0.0005,
-            warmup_epochs=3.0,
+            warmup_epochs=5.0,
             warmup_momentum=0.8,
             warmup_bias_lr=0.1,
-            box=7.5,                # Box loss weight
-            cls=0.5,                # Classification loss weight (up if struggling)
+            box=6.5,                # Box loss weight
+            cls=0.8,                # Classification loss weight (up if struggling)
             dfl=1.5,                # Distribution focal loss weight
             plots=True,
             exist_ok=True,
             overlap_mask=True,
             mask_ratio=4,
-            single_cls=True,        # Set True for single-class detection
+            # single_cls=True,        # Set True for single-class detection
             rect=True,              # Rectangular training for efficiency
             amp=True,               # Automatic mixed precision training
             close_mosaic=10         # Disables mosaic augmentation in last 10 epochs for stability
@@ -140,13 +140,66 @@ class PoolTableTrainer:
             print(f"Error exporting model: {str(e)}")
             raise
 
+    def inference(self, model, image_path, output_dir, conf_threshold=0.25):
+        """
+        Run inference on a single image or directory of images
+        """        
+        # Handle both single images and directories
+        image_paths = []
+        if os.path.isfile(image_path):
+            image_paths = [image_path]
+        else:
+            image_paths = [str(p) for p in Path(image_path).glob('*') 
+                        if p.suffix.lower() in ['.jpg', '.jpeg', '.png']]
+        
+        all_results = {}
+
+        for img_path in image_paths:
+            # Run inference
+            results = model.predict(
+                source=img_path,
+                conf=conf_threshold,
+                show=True,  # Display the annotated image
+                save=True,   # Save the results
+                project=output_dir,
+                name='predictions'
+            )
+
+            # Extract results for this image
+            img_results = []
+            for r in results[0].boxes:
+                result = {
+                    'confidence': float(r.conf.item()),
+                    'bbox': r.xyxy[0].tolist(),  # Convert tensor to list
+                }
+                if hasattr(r, 'cls'):
+                    result['class'] = int(r.cls.item())
+                img_results.append(result)
+                
+            all_results[os.path.basename(img_path)] = img_results
+            
+            print(f"Processed {img_path}")
+            print(f"Found {len(results[0].boxes)} objects")
+        
+        # Save results to JSON
+        results_file = output_dir / 'predictions' / 'results.json'
+        with open(results_file, 'w') as f:
+            json.dump(all_results, f, indent=4)
+        
+        print(f"\nResults saved to: {output_dir}")
+        print(f"- Annotated images: {output_dir}/predictions/")
+        print(f"- JSON results: {results_file}")
+
+        return results
+
+
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Train YOLOv8 for pool table segmentation')
-    parser.add_argument('--epochs', type=int, default=20, help='number of epochs')
-    parser.add_argument('--batch-size', type=int, default=32, help='batch size')
+    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
+    parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='image size')
-    parser.add_argument('--weights', type=str, default='yolov8s-seg.pt', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='yolov8x-seg.pt', help='initial weights path')
     parser.add_argument('--device', type=str, default=None, help='device (mps, cuda, or cpu)')
     args = parser.parse_args()
 
