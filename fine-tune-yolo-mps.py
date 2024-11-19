@@ -12,7 +12,8 @@ class PoolTableTrainer:
                  batch_size=16,
                  imgsz=640,
                  device=None, 
-                 runs_dir='' ):
+                 runs_dir='',
+                 pretrained_weights="yolov8x-seg.pt" ):
         """
         Initialize the pool table trainer
         """
@@ -40,25 +41,54 @@ class PoolTableTrainer:
         with open(data_yaml, 'r') as f:
             self.dataset_config = yaml.safe_load(f)
 
-    def setup_model(self, pretrained_weights="yolov8x-seg.pt"):
-        """
-        Setup YOLOv8 model with pretrained weights
-        """
+        # Download pretrained weights if not exists
         print(f"\nSetting up YOLOv8 model with {pretrained_weights}")
         print(f"Using device: {self.device}")
 
-        # Download pretrained weights if not exists
         if not os.path.exists(pretrained_weights):
             print(f"Downloading {pretrained_weights}...")
-            model = YOLO(pretrained_weights)
+            self.model = YOLO(pretrained_weights)
         else:
-            model = YOLO(pretrained_weights)
-        
+            self.model = YOLO(pretrained_weights)
         print(f"Model loaded successfully on {self.device}")
-        return model
 
+        return 
 
-    def train(self, model):
+    def print_model_weights(self, model, layer_names=None, first_n=5):
+        """
+        Print weights from specified layers or first few weights of all layers.
+        """
+        state_dict = model.model.state_dict()  # Note the double model - YOLOv8 specific
+        
+        if layer_names:
+            weights_to_check = {k: v for k, v in state_dict.items() if any(name in k for name in layer_names)}
+        else:
+            weights_to_check = state_dict
+            
+        for name, param in weights_to_check.items():
+            if param.dim() > 0:  # Skip scalar parameters
+                print(f"\nLayer: {name}")
+                print(f"Shape: {param.shape}")
+                print(f"First {first_n} weights: {param.flatten()[:first_n].tolist()}")
+                print(f"Mean: {param.mean().item():.6f}")
+                print(f"Std: {param.std().item():.6f}")
+
+    def inspect_training_weights(self, epoch):
+        """
+        Inspect model weights at specific epoch
+        """
+        print(f"\n=== Weights at epoch {epoch} ===")
+        
+        # YOLOv8 specific layers
+        important_layers = [
+            '0',  # First conv layer
+            '24',  # Detection layers
+            '23'  # Pre-detection layers
+        ]
+        
+        self.print_model_weights(self.model, important_layers)
+
+    def train(self):
         """
         Train the model with optimized settings
         """
@@ -68,6 +98,7 @@ class PoolTableTrainer:
         print(f"- Batch size: {self.batch_size}")
         print(f"- Image size: {self.imgsz}")
         print(f"- Device: {self.device}")
+        model = self.model
     
         # Start training with optimized parameters
         results = model.train(
@@ -107,12 +138,14 @@ class PoolTableTrainer:
             amp=True,               # Automatic mixed precision training
             close_mosaic=10         # Disables mosaic augmentation in last 10 epochs for stability
         ) 
+        # inspect_training_weights(self.model, 1)
         return results
 
-    def validate(self, model):
+    def validate(self):
         """
         Validate the model
         """
+        model = self.model
         print("\nRunning validation...")
         try:
             results = model.val(
@@ -129,10 +162,11 @@ class PoolTableTrainer:
             print(f"Error during validation: {str(e)}")
             raise
 
-    def export_model(self, model, format='onnx'):
+    def export_model(self, format='onnx'):
         """
         Export the model to specified format
         """
+        model = self.model
         print(f"\nExporting model to {format}...")
         try:
             model.export(format=format)
@@ -140,10 +174,11 @@ class PoolTableTrainer:
             print(f"Error exporting model: {str(e)}")
             raise
 
-    def inference(self, model, image_path, output_dir, conf_threshold=0.25):
+    def inference(self, image_path, output_dir, conf_threshold=0.25):
         """
         Run inference on a single image or directory of images
         """        
+        model = self.model
         # Handle both single images and directories
         image_paths = []
         if os.path.isfile(image_path):
@@ -208,7 +243,7 @@ def main():
     print(f"CUDA (NVIDIA): {torch.cuda.is_available()}")
 
     # Update runs_dir path construction
-    project_dir = '/Users/mouse/src/PocketFinder/runs'
+    project_dir = '/Users/ekelley/src/Pocket-Finder/runs'
     name = 'segment'
     runs_dir = os.path.join(project_dir, name)
     
@@ -222,16 +257,18 @@ def main():
     )
     
     # Setup model
-    model = trainer.setup_model(args.weights)
+    # model = trainer.setup_model(args.weights)
+
+    trainer.inspect_training_weights("start")
     
     # Train model
-    results = trainer.train(model)
+    results = trainer.train()
     
     # Validate model
-    val_results = trainer.validate(model)
+    val_results = trainer.validate()
     
     # Export model
-    trainer.export_model(model)
+    trainer.export_model()
     
     print("\nTraining completed successfully!")
     print(f"Results saved in: {trainer.runs_dir}")        
