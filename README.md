@@ -31,10 +31,11 @@ conda install pytorch pandas
 pip install -r requirements.txt
 ```
 
-## Downloading the pool table images from openImages 
+## Downloading the pool table images from openImages (and no pool tables)
 
 ```bash
 python3 openimages-pool-table-image-downloader.py 
+python3 negative-dataset-downloader.py 
 ```
 
 (Optional) Check the images downloaded properly 
@@ -46,13 +47,14 @@ python3 openimages-pool-checker.py
 Convert Openimages to YOLO format 
 
 ```bash
-python3 openimages-to-yolo-converter.py
+python3 openimages-to-yolo-converter.py # (soon to be depricated)
+ython3 openimages-to-yolo-general.py
 ```
 
 ## Fine-tuning YOLO for pool table recognition
 
 ```bash
-python3 fine-tune-yolo.py
+python3 fine-tune-yolo-mps.py
 ```
 
 ## Inference on New Single Images  
