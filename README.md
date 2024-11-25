@@ -47,8 +47,14 @@ python3 openimages-pool-checker.py
 Convert Openimages to YOLO format 
 
 ```bash
-python3 openimages-to-yolo-converter.py # (soon to be depricated)
-ython3 openimages-to-yolo-general.py
+python3 openimages-to-yolo-class.py
+```
+
+## Config 
+Modify for your path. 
+
+```bash
+python3 config.py
 ```
 
 ## Fine-tuning YOLO for pool table recognition
