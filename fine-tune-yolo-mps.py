@@ -5,15 +5,16 @@ import torch
 from pathlib import Path
 import shutil
 import argparse
+from config import PATHS
 
 class PoolTableTrainer:
-    def __init__(self, data_yaml="yolo_pool_dataset/dataset.yaml",
+    def __init__(self, data_yaml="dataset.yaml",
                  epochs=50,# was 100
                  batch_size=16,
                  imgsz=640,
                  device=None, 
                  runs_dir='',
-                 pretrained_weights="yolov8x-seg.pt" ):
+                 pretrained_weights="yolov8n-cls.pt" ):
         """
         Initialize the pool table trainer
         """
@@ -65,13 +66,13 @@ class PoolTableTrainer:
         else:
             weights_to_check = state_dict
             
-        for name, param in weights_to_check.items():
-            if param.dim() > 0:  # Skip scalar parameters
-                print(f"\nLayer: {name}")
-                print(f"Shape: {param.shape}")
-                print(f"First {first_n} weights: {param.flatten()[:first_n].tolist()}")
-                print(f"Mean: {param.mean().item():.6f}")
-                print(f"Std: {param.std().item():.6f}")
+#        for name, param in weights_to_check.items():
+#            if param.dim() > 0:  # Skip scalar parameters
+#                print(f"\nLayer: {name}")
+#                print(f"Shape: {param.shape}")
+#                print(f"First {first_n} weights: {param.flatten()[:first_n].tolist()}")
+#                print(f"Mean: {param.mean().item():.6f}")
+#                print(f"Std: {param.std().item():.6f}")
 
     def inspect_training_weights(self, epoch):
         """
@@ -100,44 +101,32 @@ class PoolTableTrainer:
         print(f"- Device: {self.device}")
         model = self.model
     
-        # Start training with optimized parameters
+        print(self.data_yaml)
         results = model.train(
             project=os.path.dirname(self.runs_dir),  # Parent directory
             name=os.path.basename(self.runs_dir),    # Run name
-            data=self.data_yaml,    # path to yaml file containing config
-            epochs=self.epochs,     
-            batch=self.batch_size,
-            imgsz=self.imgsz,
-            device=self.device,
-            nms=True,               # non-maximum suppression for filtering overlapping detections
-            iou=0.5,               # Intersection over Union threshold for NMS
-            max_det=10,             # Maximum number of detections per image
-            cache='disk',           # More stable than RAM cache
-            workers=2,              # Number of works for data loading
-            patience=5,             # Number of epochs to wait before early stopping if no improvement
-            save=True,              # Save checkpoints
-            save_period=10,         # Save every 10 epochs
+            data=os.path.dirname(self.data_yaml),                     # path to yaml file
+            epochs=self.epochs,                      # Number of epochs
+            batch=self.batch_size,                   # Batch size
+            imgsz=self.imgsz,                        # Image size
+            device=self.device,                      # CPU/GPU
+        
+            # Classification-specific parameters
             pretrained=True,
             optimizer='Adam',
-            lr0=0.01,               # Learning rate
-            lrf=0.01,               # Final learning rate factor
-            momentum=0.937,
-            weight_decay=0.0005,
-            warmup_epochs=5.0,
-            warmup_momentum=0.8,
-            warmup_bias_lr=0.1,
-            box=6.5,                # Box loss weight
-            cls=0.8,                # Classification loss weight (up if struggling)
-            dfl=1.5,                # Distribution focal loss weight
-            plots=True,
-            exist_ok=True,
-            overlap_mask=True,
-            mask_ratio=4,
-            # single_cls=True,        # Set True for single-class detection
-            rect=True,              # Rectangular training for efficiency
-            amp=True,               # Automatic mixed precision training
-            close_mosaic=10         # Disables mosaic augmentation in last 10 epochs for stability
-        ) 
+            lr0=0.001,  # Reduced learning rate for classification
+            lrf=0.01,
+            warmup_epochs=3,
+            
+            # Data handling
+            workers=4,
+            cache='ram',
+            
+            # Augmentation
+            augment=True,
+            mixup=0.1
+            )
+
         # inspect_training_weights(self.model, 1)
         return results
 
@@ -200,21 +189,18 @@ class PoolTableTrainer:
                 name='predictions'
             )
 
-            # Extract results for this image
-            img_results = []
-            for r in results[0].boxes:
-                result = {
-                    'confidence': float(r.conf.item()),
-                    'bbox': r.xyxy[0].tolist(),  # Convert tensor to list
-                }
-                if hasattr(r, 'cls'):
-                    result['class'] = int(r.cls.item())
-                img_results.append(result)
-                
-            all_results[os.path.basename(img_path)] = img_results
+            # Extract classification results
+            result = {
+                'class': results[0].probs.top1,  # Top class index
+                'confidence': float(results[0].probs.top1conf),  # Confidence score
+                'class_name': results[0].names[results[0].probs.top1]  # Class name
+            }
+            
+            all_results[os.path.basename(img_path)] = result
             
             print(f"Processed {img_path}")
-            print(f"Found {len(results[0].boxes)} objects")
+            print(f"Prediction: {result['class_name']} ({result['confidence']:.2f})")
+        
         
         # Save results to JSON
         results_file = output_dir / 'predictions' / 'results.json'
@@ -225,16 +211,15 @@ class PoolTableTrainer:
         print(f"- Annotated images: {output_dir}/predictions/")
         print(f"- JSON results: {results_file}")
 
-        return results
-
+        return all_results
 
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Train YOLOv8 for pool table segmentation')
-    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=1, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='image size')
-    parser.add_argument('--weights', type=str, default='yolov8x-seg.pt', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='yolov8n-cls.pt', help='initial weights path')
     parser.add_argument('--device', type=str, default=None, help='device (mps, cuda, or cpu)')
     args = parser.parse_args()
 
@@ -243,13 +228,18 @@ def main():
     print(f"CUDA (NVIDIA): {torch.cuda.is_available()}")
 
     # Update runs_dir path construction
-    project_dir = '/Users/ekelley/src/Pocket-Finder/runs'
-    name = 'segment'
+    project_dir = PATHS['project_dir']
+
+    name = 'run/segment'
     runs_dir = os.path.join(project_dir, name)
+
+    name2='yolo_pool_classification/dataset.yaml'
+    data_yaml = os.path.join(project_dir, name2)
     
     # Initialize trainer
     trainer = PoolTableTrainer(
         epochs=args.epochs,
+        data_yaml=data_yaml,
         batch_size=args.batch_size,
         imgsz=args.img_size,
         device=args.device,

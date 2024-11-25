@@ -7,10 +7,9 @@ import json
 
 def run_inference(model_path, image_path, output_dir, conf_threshold=0.5):
     """
-    Run inference on a single image or directory of images
+    Run classification inference on a single image or directory of images
     """
     # Load the model
-    
     model = YOLO(model_path)
     print('Successfully loaded the model weights.')
     
@@ -29,35 +28,30 @@ def run_inference(model_path, image_path, output_dir, conf_threshold=0.5):
         results = model.predict(
             source=img_path,
             conf=conf_threshold,
-            show=True,  # Display the annotated image
             save=True,   # Save the results
             project=output_dir,
             name='predictions'
         )
 
-        # Extract results for this image
-        img_results = []
-        for r in results[0].boxes:
-            result = {
-                'confidence': float(r.conf.item()),
-                'bbox': r.xyxy[0].tolist(),  # Convert tensor to list
-            }
-            if hasattr(r, 'cls'):
-                result['class'] = int(r.cls.item())
-            img_results.append(result)
+        # Extract classification results
+        result = {
+            'class_name': results[0].names[results[0].probs.top1],  # Get class name
+            'confidence': float(results[0].probs.top1conf),  # Get confidence
+            'class_index': int(results[0].probs.top1)  # Get class index
+        }
             
-        all_results[os.path.basename(img_path)] = img_results
+        all_results[os.path.basename(img_path)] = result
         
-        print(f"Processed {img_path}")
-        print(f"Found {len(results[0].boxes)} objects")
+        print(f"\nProcessed {img_path}")
+        print(f"Prediction: {result['class_name']} ({result['confidence']:.2f} confidence)")
     
     # Save results to JSON
+    os.makedirs(output_dir / 'predictions', exist_ok=True)
     results_file = output_dir / 'predictions' / 'results.json'
     with open(results_file, 'w') as f:
         json.dump(all_results, f, indent=4)
     
     print(f"\nResults saved to: {output_dir}")
-    print(f"- Annotated images: {output_dir}/predictions/")
     print(f"- JSON results: {results_file}")
 
 def main():
@@ -69,10 +63,10 @@ def main():
     #args = parser.parse_args()
 
     # model_path = './Users/mouse/src/PocketFinder/yolov8x-seg.pt' # base yolo 
-    model_path = '/Users/ekelley/src/Pocket-Finder/runs/segment/weights/best.pt'
-    image_path = '/Users/ekelley/src/Pocket-Finder/my_own_pics/toad_hall_sample2.jpeg'
-    # image_path = '/Users/ekelley/src/Pocket-Finder/my_own_pics/no_pool_table.jpeg'
-    save_path = Path('/Users/ekelley/src/Pocket-Finder/my_own_pics_results')
+    model_path = '/Users/mouse/src/PocketFinder/First-working-copy/weights/best.pt'
+    image_path = '/Users/mouse/src/PocketFinder/my_own_pics/toad_hall_sample1.jpeg'
+    # image_path = '/Users/mouse/src/Pocket-Finder/my_own_pics/no_pool_table.jpeg'
+    save_path = Path('/Users/mouse/src/PocketFinder/my_own_pics_results')
 
     run_inference(model_path, image_path , save_path, 0.5)
 
