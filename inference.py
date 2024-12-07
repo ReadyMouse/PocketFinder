@@ -63,10 +63,10 @@ def main():
     #args = parser.parse_args()
 
     # model_path = './Users/mouse/src/PocketFinder/yolov8x-seg.pt' # base yolo 
-    model_path = '/Users/mouse/src/PocketFinder/First-working-copy/weights/best.pt'
-    image_path = '/Users/mouse/src/PocketFinder/my_own_pics/toad_hall_sample1.jpeg'
+    model_path = './First-working-copy/weights/best.pt'
+    image_path = './my_own_pics/toad_hall_sample1.jpeg'
     # image_path = '/Users/mouse/src/Pocket-Finder/my_own_pics/no_pool_table.jpeg'
-    save_path = Path('/Users/mouse/src/PocketFinder/my_own_pics_results')
+    save_path = Path('./my_own_pics_results')
 
     run_inference(model_path, image_path , save_path, 0.5)
 

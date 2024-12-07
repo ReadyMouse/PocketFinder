@@ -55,40 +55,6 @@ class PoolTableTrainer:
 
         return 
 
-    def print_model_weights(self, model, layer_names=None, first_n=5):
-        """
-        Print weights from specified layers or first few weights of all layers.
-        """
-        state_dict = model.model.state_dict()  # Note the double model - YOLOv8 specific
-        
-        if layer_names:
-            weights_to_check = {k: v for k, v in state_dict.items() if any(name in k for name in layer_names)}
-        else:
-            weights_to_check = state_dict
-            
-#        for name, param in weights_to_check.items():
-#            if param.dim() > 0:  # Skip scalar parameters
-#                print(f"\nLayer: {name}")
-#                print(f"Shape: {param.shape}")
-#                print(f"First {first_n} weights: {param.flatten()[:first_n].tolist()}")
-#                print(f"Mean: {param.mean().item():.6f}")
-#                print(f"Std: {param.std().item():.6f}")
-
-    def inspect_training_weights(self, epoch):
-        """
-        Inspect model weights at specific epoch
-        """
-        print(f"\n=== Weights at epoch {epoch} ===")
-        
-        # YOLOv8 specific layers
-        important_layers = [
-            '0',  # First conv layer
-            '24',  # Detection layers
-            '23'  # Pre-detection layers
-        ]
-        
-        self.print_model_weights(self.model, important_layers)
-
     def train(self):
         """
         Train the model with optimized settings
@@ -101,11 +67,10 @@ class PoolTableTrainer:
         print(f"- Device: {self.device}")
         model = self.model
     
-        print(self.data_yaml)
         results = model.train(
             project=os.path.dirname(self.runs_dir),  # Parent directory
             name=os.path.basename(self.runs_dir),    # Run name
-            data=os.path.dirname(self.data_yaml),                     # path to yaml file
+            data=os.path.dirname(self.data_yaml),    # path to yaml file
             epochs=self.epochs,                      # Number of epochs
             batch=self.batch_size,                   # Batch size
             imgsz=self.imgsz,                        # Image size
@@ -127,7 +92,6 @@ class PoolTableTrainer:
             mixup=0.1
             )
 
-        # inspect_training_weights(self.model, 1)
         return results
 
     def validate(self):
@@ -216,7 +180,7 @@ class PoolTableTrainer:
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Train YOLOv8 for pool table segmentation')
-    parser.add_argument('--epochs', type=int, default=1, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=10, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='image size')
     parser.add_argument('--weights', type=str, default='yolov8n-cls.pt', help='initial weights path')
@@ -230,7 +194,7 @@ def main():
     # Update runs_dir path construction
     project_dir = PATHS['project_dir']
 
-    name = 'run/segment'
+    name = 'run/epoch10'
     runs_dir = os.path.join(project_dir, name)
 
     name2='yolo_pool_classification/dataset.yaml'
@@ -245,9 +209,6 @@ def main():
         device=args.device,
         runs_dir=runs_dir 
     )
-    
-    # Setup model
-    # model = trainer.setup_model(args.weights)
 
     trainer.inspect_training_weights("start")
     
