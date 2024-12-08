@@ -19,7 +19,7 @@ The developers of PocketFinder would love for users to add the pool tables found
 https://www.openstreetmap.org/
 https://overpass-turbo.eu/#
 
-
+# Training + Inference
 ## Setting up a Running Environment
 Set up a working environmnet based off the requirements.txt. Using conda or miniconda. 
 
@@ -69,5 +69,14 @@ python3 fine-tune-yolo-mps.py
 ```bash
 python3 inference.py
 ```
+# Image Gathering and Inference Integration
+Currently venue-photo-finder.py is where I'm gathering the completed modules. 
+
+TODO: Searching via a lat/lon and radius for google place IDs. 
+lat/lon/radius -> GooglePlacesVenueFinder -> place IDs
+
+place IDs -> GooglePlacesPhotoFinder -> images
+images -> PoolTableInference -> confidence: pool table/no pool table
+
 
 Note: Sections of this code was generated with Claude AI. 
