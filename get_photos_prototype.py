@@ -3,6 +3,7 @@ import google.auth.transport.requests
 import requests
 import os
 import json
+import time
 
 def get_access_token():
     try:
@@ -105,32 +106,69 @@ def get_hotel_photos():
         # Get the actual photo media for each photo reference
         # 
         photo_results = []
-        for i, photo in enumerate(place_data['photos']):
-            photo_name = photo['name'] 
-            photo_url = f"{base_url}{photo_name}/media?key={api_key}&maxHeightPx=4032&maxWidthPx=4032"
-            print(f"Requesting media from: {photo_url}")
+        page_count = 0 
+        next_page_token = None
 
-            # photo_url = f"{base_url}{place_id}/photos/{photo['name']}/media"
-            photo_response = requests.get(
-                photo_url,
-                headers=headers2,
-                allow_redirects=True  # Explicitly allow redirects
-            )
-            #import pdb; pdb.set_trace()
-            if photo_response.status_code == 200:
-                # Save the photo
-                filename = f"photo_{i}.jpg"
-                file_path = os.path.join('hotel_photos', filename)
+        while True:
+            # Add page token to URL if we have one
+            url = place_url
+            if next_page_token:
+                url = f"{url}?pageToken={next_page_token}"
+            
+            print(f"\nFetching page {page_count + 1}...")
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code != 200:
+                print(f"Error getting place details: {response.text}")
+                break
                 
-                with open(file_path, 'wb') as f:
-                    f.write(photo_response.content)
-                print(f"Saved photo {i} to {file_path}")
-                photo_results.append(file_path)
-            else:
-                print(f"Error downloading photo {i}: {response.text}")
-        
-        print(photo_results)
+            place_data = response.json()
+            print(f"Received {len(place_data.get('photos', []))} photos in this page")
+            
+            if 'photos' not in place_data:
+                print("No photos in this page")
+                break
 
+            for i, photo in enumerate(place_data['photos']):
+                photo_name = photo['name'] 
+                photo_url = f"{base_url}{photo_name}/media?key={api_key}&maxHeightPx=4032&maxWidthPx=4032"
+                # print(f"Requesting media from: {photo_url}")
+
+                # photo_url = f"{base_url}{place_id}/photos/{photo['name']}/media"
+                photo_response = requests.get(
+                    photo_url,
+                    headers=headers2,
+                    allow_redirects=True,  # Explicitly allow redirects
+                    stream=True
+                )
+                #import pdb; pdb.set_trace()
+                if photo_response.status_code == 200:
+                    # Save the photo
+                    total_index = len(photo_results)
+                    filename = f"photo_{total_index}.jpg"
+                    file_path = os.path.join('hotel_photos', filename)
+                    
+                    with open(file_path, 'wb') as f:
+                        f.write(photo_response.content)
+
+                    print(f"Saved photo {i} to {file_path}")
+                    photo_results.append(file_path)
+                else:
+                    print(f"Error downloading photo {i}: {response.text}")
+            
+            # Check for next page
+            next_page_token = place_data.get('nextPageToken')
+            if not next_page_token:
+                print("\nNo more pages available")
+                break
+            
+            page_count += 1
+            print(f"Found next page token: {next_page_token[:20]}...")
+            
+            # Optional: Add a small delay between pages to avoid rate limiting
+            time.sleep(1)
+
+        print(f"\nDownload complete! Successfully downloaded {len(photo_results)} photos across {page_count + 1} pages")
         return photo_results
        
 if __name__ == "__main__":
