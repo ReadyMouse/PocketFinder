@@ -75,8 +75,9 @@ Currently venue-photo-finder.py is where I'm gathering the completed modules.
 TODO: Searching via a lat/lon and radius for google place IDs. 
 lat/lon/radius -> GooglePlacesVenueFinder -> place IDs
 
-place IDs -> GooglePlacesPhotoFinder -> images
+place IDs -> GooglePlacesPhotoReviews -> images + reviews
 images -> PoolTableInference -> confidence: pool table/no pool table
+TODO: reviews -> ReviewInference -> confidence: pool table/no pool table
 
 
 Note: Sections of this code was generated with Claude AI. 
