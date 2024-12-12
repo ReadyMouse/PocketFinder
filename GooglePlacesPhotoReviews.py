@@ -23,15 +23,19 @@ def get_access_token(self):
         print(f"Error getting token: {str(e)}")
         raise
 
-class GooglePlacesClient:
+class GooglePlacesPhotoReviews:
     def __init__(self, 
                  cred_json_path='pocketfinder-a0ced62ce802.json', 
-                 api_key='api_key.txt'):
+                 api_key='api_key.txt',
+                 output_dir = 'google_reviews'):
         
         self.cred_json_path = cred_json_path
         with open(api_key, 'r') as file:
             self.api_key = file.read().strip()
         self.base_url = "https://places.googleapis.com/v1/"
+
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
 
     def get_place_details(self, place_id='ChIJ219n706e44kRnQU0tC1nqo0'):
         """Get place details with optional pagination"""
@@ -51,7 +55,7 @@ class GooglePlacesClient:
             
         return response.json()
 
-    def download_photo(self, photo_name, output_path, prefix=""):
+    def download_photo(self, photo_name, save_name, prefix=""):
         """Helper method to download a single photo"""
         headers = {'Authorization': f'Bearer {get_access_token(self)}'}
         photo_url = f"{self.base_url}{photo_name}/media?key={self.api_key}&maxHeightPx=4032&maxWidthPx=4032"
@@ -62,12 +66,13 @@ class GooglePlacesClient:
             allow_redirects=True,
             stream=True
         )
+        file_path = os.path.join(self.output_dir, save_name)
 
         if photo_response.status_code == 200:
-            with open(output_path, 'wb') as f:
+            with open(file_path, 'wb') as f:
                 f.write(photo_response.content)
-            print(f"Saved {prefix} photo to {output_path}")
-            return output_path
+            # print(f"Saved {save_name} to {self.output_dir}")
+            return file_path
         else:
             print(f"Error downloading photo: {photo_response.text}")
             return None
@@ -78,14 +83,14 @@ class GooglePlacesClient:
         if not place_data or 'photos' not in place_data:
             return "No photos available for this place"
         
-        os.makedirs('hotel_photos', exist_ok=True)
+        #os.makedirs('google_photos', exist_ok=True)
         photo_results = []
         
         for i, photo in enumerate(place_data['photos']):
             photo_name = photo['name']
-            file_path = os.path.join('hotel_photos', f"photo_{i}.jpg")
+            save_name = f"photo_{place_id}_{i}.jpg"
             
-            downloaded_path = self.download_photo(photo_name, file_path, "place")
+            downloaded_path = self.download_photo(photo_name, save_name, "place")
             if downloaded_path:
                 photo_results.append(downloaded_path)
                 
@@ -101,12 +106,9 @@ class GooglePlacesClient:
         reviews = place_data.get('reviews', [])
         all_reviews = []
 
-        # Create directories for reviews and their photos
-        os.makedirs('hotel_reviews', exist_ok=True)
-        # os.makedirs('hotel_reviews/photos', exist_ok=True)
             
         for i, review in enumerate(reviews):
-            total_index = len(all_reviews)
+
             processed_review = {
                 'text': review['text']['text'],
                 'publish_time': review.get('publishTime'),
@@ -117,8 +119,8 @@ class GooglePlacesClient:
             if 'photos' in review:
                 for j, photo in enumerate(review['photos']):
                     photo_name = photo['name']
-                    file_path = os.path.join('hotel_reviews', 
-                                            f"review_{total_index}_photo_{j}.jpg")
+                    file_path = os.path.join(self.output_dir, 
+                                            f"review_{place_id}_photo_{j}.jpg")
                     
                     downloaded_path = self.download_photo(photo_name, file_path, "review")
                     if downloaded_path:
@@ -134,14 +136,14 @@ class GooglePlacesClient:
         }
         
         # Save reviews data to JSON
-        output_file = os.path.join('hotel_reviews', f'reviews_{place_id}.json')
+        output_file = os.path.join(self.output_dir, f'reviews_{place_id}.json')
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(reviews_data, f, ensure_ascii=False, indent=2)
 
         return reviews_data
 
 if __name__ == "__main__":
-    client = GooglePlacesClient()
+    client = GooglePlacesPhotoReviews()
     # Get all reviews (or specify max_reviews parameter to limit)
     photos = client.get_place_photos()
     reviews = client.get_place_reviews()  
