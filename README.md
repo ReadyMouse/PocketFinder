@@ -25,9 +25,9 @@ https://overpass-turbo.eu/#
 python3 PocketFinder.py 
 ```
 
-lat/lon/radius -> GooglePlacesVenueFinder -> place IDs
-place IDs -> GooglePlacesPhotoReviews -> images + reviews
-images -> PoolTableInference -> confidence: pool table/no pool table
+1. lat/lon/radius -> GooglePlacesVenueFinder -> place IDs
+1. place IDs -> GooglePlacesPhotoReviews -> images + reviews
+1. images -> PoolTableInference -> confidence: pool table/no pool table
 
 TODO: reviews -> ReviewInference -> confidence: pool table/no pool table
 
