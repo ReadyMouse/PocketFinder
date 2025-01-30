@@ -180,7 +180,7 @@ class PoolTableTrainer:
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Train YOLOv8 for pool table segmentation')
-    parser.add_argument('--epochs', type=int, default=10, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='image size')
     parser.add_argument('--weights', type=str, default='yolov8n-cls.pt', help='initial weights path')
@@ -194,7 +194,7 @@ def main():
     # Update runs_dir path construction
     project_dir = PATHS['project_dir']
 
-    name = 'run/epoch10'
+    name = 'run/epoch50-'
     runs_dir = os.path.join(project_dir, name)
 
     name2='yolo_pool_classification/dataset.yaml'
@@ -210,7 +210,7 @@ def main():
         runs_dir=runs_dir 
     )
 
-    trainer.inspect_training_weights("start")
+    # trainer.inspect_training_weights("start")
     
     # Train model
     results = trainer.train()
