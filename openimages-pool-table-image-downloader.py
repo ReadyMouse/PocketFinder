@@ -24,25 +24,23 @@ class OpenImagesPoolDownloader:
         # Load dataset
         dataset = foz.load_zoo_dataset(
             "open-images-v7",
-            split="train",
+            split="test",
             classes=[self.class_label],
             # dataset_dir="/path/to/your/desired/location", # output
             max_samples=1000
         )
-        
+
         print(f"\nDataset downloaded. Found {len(dataset)} samples")
 
         # Process dataset
         print("\nProcessing dataset...")
         successful_images = 0
-        dataset_info = []
         
         for sample in tqdm(dataset, desc="Processing samples"):
             try:
                 # Process image
                 img_filename = os.path.basename(sample.filepath)
                 img_path = os.path.join(self.images_dir, img_filename)
-                base_name = os.path.splitext(img_filename)[0]
                 
                 # Copy image if it doesn't exist
                 if not os.path.exists(img_path):

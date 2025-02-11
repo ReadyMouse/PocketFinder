@@ -73,7 +73,7 @@ class PoolTableInference():
 if __name__ == "__main__":
     # model_path = './Users/mouse/src/PocketFinder/yolov8x-seg.pt' # base yolo 
     # model_path = './First-working-copy/weights/best.pt'
-    model_path = "./run/epoch50-2/weights/best.pt"
+    model_path = "./run/epoch50-4/weights/best.pt"
     #image_path = './hotel_photos'
     image_path = './my_own_pics'
     #save_path = './hotel_results'

@@ -15,19 +15,19 @@ def main():
     # Example usage
     cred_json_path ='pocketfinder-a0ced62ce802.json' 
     api_key='api_key.txt'
-    output_dir = '/PocketFinder/nearby_NYC'
+    output_dir = 'nearby_BOS'
     os.makedirs(output_dir, exist_ok=True)
 
-    # Example coordinates for New York City
+    # Example coordinates for Burlington, MA
     # TODO: Make place type an input field. Resturant, bar, etc
     venue_Finder = GooglePlacesVenueFinder()
-    venues = venue_Finder.getPlaceID(latitude=40.7128,
-                           longitude=-74.0060,
-                           radius=500)
+    venues = venue_Finder.getPlaceID(latitude=42.4883,
+                           longitude=-71.2338,
+                           radius=1000)
 
 
     # TODO: How many venues did it find? 
-    # print(f'Found {len(venues.items)} venues.')
+    print(f'Found {len(venues.items())} venues.')
 
     # Initialize photo finder
     photo_finder = GooglePlacesPhotoReviews(
@@ -75,7 +75,7 @@ def main():
                     try:
                         for item in venue.photos_urls:
                             results = pool_table_inference.run_inference(image_path=item,
-                                                                        save_negative=False # to save photos that don't have pool tables 
+                                                                        save_negative=True # to save photos that don't have pool tables 
                                                                         )   
                             #pdb.set_trace()
                             if results[os.path.basename(item)]['class_name'] == 'pool_table':

@@ -30,7 +30,9 @@ class OpenImagesNegativeDownloader:
             "Coffee table",
             "Countertop",
             "Table",
-            "Kitchen & dining room table"
+            "Kitchen & dining room table",
+            "Food",
+            "Drink"
         ]
         
         # Class we want to exclude
